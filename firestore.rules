@@ -8,6 +8,7 @@ service cloud.firestore {
 
     match /menu/{id}  { allow read: if true; allow write: if isOwner(); }
     match /stock/{id} { allow read: if true; allow write: if isStaff(); }
+    match /settings/{id} { allow read: if true; allow write: if isOwner(); }
     match /orders/{id} {
       allow get: if true;                 // customer tracks own order by its random id
       allow list: if isStaff();           // only staff can list all orders

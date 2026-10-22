@@ -224,10 +224,69 @@ const W = async (fn) => {
   }
 };
 /* views */
+/* café hours: ordering opens and closes by itself (India time). Owner can override. */
+const TZ = "Asia/Kolkata";
+const within = (n, o, c) => (o <= c ? n >= o && n < c : n >= o || n < c);
+const nowMin = () => {
+  const p = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  return (
+    +p.find((x) => x.type === "hour").value * 60 +
+    +p.find((x) => x.type === "minute").value
+  );
+};
+const mins = (t) => {
+  const [h, m] = String(t || "0:0")
+    .split(":")
+    .map(Number);
+  return h * 60 + (m || 0);
+};
+const fmtT = (t) => {
+  const [h, m] = String(t || "0:0")
+    .split(":")
+    .map(Number);
+  return (
+    (h % 12 || 12) +
+    ":" +
+    String(m || 0).padStart(2, "0") +
+    " " +
+    (h < 12 ? "AM" : "PM")
+  );
+};
+function openState() {
+  const h = S.hours;
+  if (!h || h.mode === "open") return { open: true };
+  if (h.mode === "closed")
+    return { open: false, text: "We are closed right now." };
+  const open = within(nowMin(), mins(h.open), mins(h.close));
+  return {
+    open,
+    text: open
+      ? ""
+      : "We are closed right now. We open at " + fmtT(h.open) + ".",
+  };
+}
+const closedBanner = () => {
+  const s = openState();
+  return s.open
+    ? ""
+    : `<div class="track" style="border-color:var(--bad)"><b>🔒 ${esc(s.text)}</b><div style="color:var(--mut);font-size:14px">You can browse the menu. Ordering is available during café hours.</div></div>`;
+};
+function hoursBox() {
+  const h = S.hours || { open: "09:00", close: "22:00", mode: "auto" },
+    s = openState(),
+    L = "font-size:13px;color:var(--mut)";
+  return `<div class="box" style="margin-bottom:16px"><div class="row"><h3>🕘 Café hours</h3><span class="tag ${s.open ? "g" : ""}">${s.open ? "Open now" : "Closed now"}</span></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:flex-end"><div><label style="${L}">Opens</label><input id="hopen" type="time" value="${esc(h.open)}" style="width:auto"></div><div><label style="${L}">Closes</label><input id="hclose" type="time" value="${esc(h.close)}" style="width:auto"></div><div><label style="${L}">Mode</label><select id="hmode" style="width:auto"><option value="auto" ${h.mode === "auto" ? "selected" : ""}>Automatic (by timing)</option><option value="open" ${h.mode === "open" ? "selected" : ""}>Open now (ignore timing)</option><option value="closed" ${h.mode === "closed" ? "selected" : ""}>Closed now</option></select></div><button data-act="hours">Save</button></div><p style="font-size:13px;color:var(--mut);margin:8px 0 0">In Automatic mode, ordering opens and closes by itself at these times (India time). Orders already placed continue as usual.</p></div>`;
+}
 function card(i) {
   const q = S.cart[i.id] || 0,
-    out = isOut(i);
-  return `<div class="card"><div class="e">${esc(i.e)}</div><h3>${esc(i.name)}</h3><p>${esc(i.desc)}</p><div class="row"><span class="price">${inr(i.price)}</span>${out ? '<span class="sold">Sold out</span>' : q ? `<div class="qty"><button data-act="dec" data-id="${i.id}">−</button><b>${q}</b><button data-act="inc" data-id="${i.id}">+</button></div>` : `<button data-act="inc" data-id="${i.id}">Add</button>`}</div></div>`;
+    out = isOut(i),
+    cl = !openState().open;
+  return `<div class="card"><div class="e">${esc(i.e)}</div><h3>${esc(i.name)}</h3><p>${esc(i.desc)}</p><div class="row"><span class="price">${inr(i.price)}</span>${cl ? '<span class="sold">Closed</span>' : out ? '<span class="sold">Sold out</span>' : q ? `<div class="qty"><button data-act="dec" data-id="${i.id}">−</button><b>${q}</b><button data-act="inc" data-id="${i.id}">+</button></div>` : `<button data-act="inc" data-id="${i.id}">Add</button>`}</div></div>`;
 }
 const STEPS = ["new", "preparing", "ready", "served"],
   LBL = ["Received", "Cooking", "Ready!", "Served"];
@@ -239,7 +298,7 @@ function vCust() {
   const items = menuList().filter((i) => S.cat === "All" || i.cat === S.cat),
     n = Object.values(S.cart).reduce((a, b) => a + b, 0),
     mine = S.orders.find((o) => o.id === S.mine);
-  return `${mine ? track(mine) + notifBtn() : ""}<section class="hero"><h1>What are you craving today?</h1><p>Browse the menu, add to your order and we’ll bring it to your table.</p></section><div class="chips">${CATS.map((c) => `<button class="chip ${c === S.cat ? "on" : ""}" data-act="cat" data-v="${c}">${c}</button>`).join("")}</div><div class="grid">${items.map(card).join("")}</div>${n ? `<button class="cartbar" data-act="checkout"><span>${n} item${n > 1 ? "s" : ""}</span><b>View order · ${inr(cartSub())}</b></button>` : ""}`;
+  return `${mine ? track(mine) + notifBtn() : ""}${closedBanner()}<section class="hero"><h1>What are you craving today?</h1><p>Browse the menu, add to your order and we’ll bring it to your table.</p></section><div class="chips">${CATS.map((c) => `<button class="chip ${c === S.cat ? "on" : ""}" data-act="cat" data-v="${c}">${c}</button>`).join("")}</div><div class="grid">${items.map(card).join("")}</div>${n && openState().open ? `<button class="cartbar" data-act="checkout"><span>${n} item${n > 1 ? "s" : ""}</span><b>View order · ${inr(cartSub())}</b></button>` : ""}`;
 }
 function oc(o) {
   const m = Math.floor((Date.now() - o.ts) / 60000),
@@ -322,7 +381,7 @@ function vOwner() {
       .slice(0, 6),
     mx = top.length ? top[0][1] : 1,
     rec = [...o].sort((a, b) => b.ts - a.ts).slice(0, 12);
-  return `<h2 style="margin-bottom:12px">Owner dashboard</h2>${pendingBox()}<div class="stats"><div class="stat"><b>${inr(rev)}</b><span>Revenue collected</span></div><div class="stat"><b>${o.length}</b><span>Total orders</span></div><div class="stat"><b>${inr(o.length ? Math.round(all / o.length) : 0)}</b><span>Average order</span></div><div class="stat"><b>${o.filter((x) => !["served", "cancelled", "pending"].includes(x.status)).length}</b><span>Open orders</span></div></div>
+  return `<h2 style="margin-bottom:12px">Owner dashboard</h2>${pendingBox()}${hoursBox()}<div class="stats"><div class="stat"><b>${inr(rev)}</b><span>Revenue collected</span></div><div class="stat"><b>${o.length}</b><span>Total orders</span></div><div class="stat"><b>${inr(o.length ? Math.round(all / o.length) : 0)}</b><span>Average order</span></div><div class="stat"><b>${o.filter((x) => !["served", "cancelled", "pending"].includes(x.status)).length}</b><span>Open orders</span></div></div>
 <div class="two"><div class="box"><h3>Top sellers</h3>${top.map(([n, q]) => `<div class="row" style="font-size:14px"><span>${esc(n)}</span><b>${q}</b></div><div class="bar" style="width:${Math.round((q / mx) * 100)}%"></div>`).join("") || '<p class="empty">No sales yet</p>'}</div>
 <div class="box"><h3>Payments</h3>${Object.entries(pays)
     .map(
@@ -472,6 +531,7 @@ function ppanel() {
 }
 function checkout() {
   if (!Object.keys(S.cart).length) return;
+  if (!openState().open) return toast("Sorry, we are closed right now.");
   S.pay = "counter";
   $("#modal").innerHTML =
     `<div class="sheet"><div class="row"><h2>Your order</h2><button class="ghost" data-act="close">✕</button></div><div id="mcart"></div><label>Your name</label><input id="cn" placeholder="e.g. Ahesan" maxlength="30"><label>Mobile number</label><input id="cph" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number"><label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)"><input id="cwa" type="checkbox" style="width:auto"> Send my thanks and receipt on WhatsApp</label><label>Table number</label><select id="ct">${Array.from({ length: 20 }, (_, i) => `<option>${i + 1}</option>`).join("")}</select><label>Notes for the chef (optional)</label><textarea id="cnote" rows="2" maxlength="140" placeholder="Less sugar, extra spicy…"></textarea><label>Payment</label><div class="pays"><button data-act="pay" data-v="counter">Pay at counter</button><button data-act="pay" data-v="upi">UPI</button></div><div class="panel" id="ppanel"></div><button id="pbtn" style="width:100%;margin-top:14px;padding:14px" data-act="place"></button></div>`;
@@ -481,6 +541,7 @@ function checkout() {
   if (tb >= 1 && tb <= 20) $("#ct").value = String(tb);
 }
 async function place() {
+  if (!openState().open) return toast("Sorry, we are closed right now.");
   const name = $("#cn").value.trim();
   if (!name) return toast("Please enter your name");
   const phone = $("#cph").value.replace(/\D/g, "");
@@ -777,6 +838,10 @@ if ("serviceWorker" in navigator)
     S.stock = Object.fromEntries(l.map((x) => [x.id, x]));
     render();
   });
+  B.sub("settings", (l) => {
+    S.hours = l.find((x) => x.id === "hours") || null;
+    render();
+  });
   if (FB)
     FB.U.onAuthStateChanged(FB.auth, () => {
       startOrders();
@@ -786,6 +851,13 @@ if ("serviceWorker" in navigator)
   addEventListener("hashchange", render);
   setInterval(() => {
     if (route() === "chef") render();
+    else if (route() === "customer") {
+      const o = openState().open;
+      if (o !== window._wasOpen) {
+        window._wasOpen = o;
+        render();
+      }
+    }
   }, 30000);
 })();
 document.addEventListener("click", (e) => {
@@ -878,4 +950,14 @@ document.addEventListener("click", (e) => {
   window.open(waLink(o), "_blank", "noopener");
   toast("WhatsApp opened. Tap Send.");
   W(() => B.upd("orders", o.id, { waSent: true }));
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-act=hours]")) return;
+  const o = $("#hopen").value,
+    c = $("#hclose").value,
+    m = $("#hmode").value;
+  if (m === "auto" && (!o || !c)) return toast("Please set both times");
+  W(() => B.set("settings", "hours", { open: o, close: c, mode: m })).then(() =>
+    toast("Café hours saved"),
+  );
 });
