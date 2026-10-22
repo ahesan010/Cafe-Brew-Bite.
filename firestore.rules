@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Change both emails to the ones you created in Authentication.
+    function isChef()  { return request.auth != null && request.auth.token.email == 'chef@mycafe.com'; }
+    function isOwner() { return request.auth != null && request.auth.token.email == 'owner@mycafe.com'; }
+    function isStaff() { return isChef() || isOwner(); }
+
+    match /menu/{id}  { allow read: if true; allow write: if isOwner(); }
+    match /stock/{id} { allow read: if true; allow write: if isStaff(); }
+    match /orders/{id} {
+      allow get: if true;                 // customer tracks own order by its random id
+      allow list: if isStaff();           // only staff can list all orders
+      allow create: if request.resource.data.paid == false
+                    && ((request.resource.data.pay == 'counter' && request.resource.data.status == 'new')
+                     || (request.resource.data.pay == 'upi' && request.resource.data.status == 'pending'))
+                    && request.resource.data.total is number
+                    && request.resource.data.phone is string
+                    && request.resource.data.items.size() <= 30;
+      allow update, delete: if isStaff();
+    }
+  }
+}

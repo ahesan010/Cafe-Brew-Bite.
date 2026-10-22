@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Table QR Codes · Brew &amp; Bite Café</title>
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font: 16px/1.4 system-ui, sans-serif;
+      background: #fbf3e6;
+      color: #3b2416
+    }
+
+    .bar {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end
+    }
+
+    .bar label {
+      display: block;
+      font-size: 13px;
+      color: #8a6f5a;
+      margin-bottom: 4px
+    }
+
+    .bar input {
+      padding: 9px 12px;
+      border: 1px solid #ecdcc3;
+      border-radius: 10px;
+      font: inherit;
+      background: #fffaf1
+    }
+
+    .bar button {
+      padding: 10px 18px;
+      border: 0;
+      border-radius: 12px;
+      background: #b8642b;
+      color: #fff;
+      font: 600 16px system-ui, sans-serif;
+      cursor: pointer
+    }
+
+    .bar .ghost {
+      background: #fffaf1;
+      color: #b8642b;
+      border: 1px solid #ecdcc3
+    }
+
+    .sheet {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 16px 24px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px
+    }
+
+    .card {
+      background: #fff;
+      color: #000;
+      border: 2px dashed #b8642b;
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      break-inside: avoid
+    }
+
+    .card h2 {
+      margin: 0;
+      font: 700 16px Georgia, serif
+    }
+
+    .card .t {
+      font: 700 26px Georgia, serif;
+      margin: 2px 0
+    }
+
+    .qr {
+      display: flex;
+      justify-content: center;
+      margin: 6px 0
+    }
+
+    .card p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #444
+    }
+
+    .card small {
+      font-size: 10px;
+      color: #777;
+      word-break: break-all
+    }
+
+    @media print {
+      body {
+        background: #fff
+      }
+
+      .bar {
+        display: none
+      }
+
+      .sheet {
+        max-width: none;
+        padding: 0;
+        gap: 8mm
+      }
+
+      @page {
+        margin: 10mm
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bar">
+    <div><label>Website address</label><input id="base" size="30" value="https://brew-bite-cafe.web.app"></div>
+    <div><label>Number of tables</label><input id="n" type="number" min="1" max="20" value="10" style="width:90px">
+    </div>
+    <button id="go" class="ghost">Update</button><button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+  <div class="sheet" id="sheet"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const $ = s => document.querySelector(s);
+    function build() {
+      if (typeof QRCode === 'undefined') { $('#sheet').innerHTML = '<p style="padding:16px">The QR library could not load. Please check your internet connection and refresh.</p>'; return }
+      const base = $('#base').value.trim().replace(/\/+$/, ''), n = Math.max(1, Math.min(20, +$('#n').value || 10)), box = $('#sheet');
+      box.innerHTML = '';
+      for (let i = 1; i <= n; i++) {
+        const url = base + '/customer.html?table=' + i, c = document.createElement('div');
+        c.className = 'card';
+        c.innerHTML = '<h2>☕ Brew &amp; Bite Café</h2><div class="t">Table ' + i + '</div><div class="qr"></div><p>Scan to see the menu &amp; order</p><small>' + url + '</small>';
+        box.appendChild(c);
+        new QRCode(c.querySelector('.qr'), { text: url, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
+      }
+    }
+    $('#go').onclick = build; build();
+  </script>
+</body>
+
+</html>

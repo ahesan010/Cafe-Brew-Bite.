@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Kitchen · Brew & Bite Café</title>
+    <link rel="stylesheet" href="cafe.css">
+</head>
+
+<body>
+    <header>
+        <div class="brand">☕ Brew & Bite Café<small>Kitchen display</small></div>
+        <div class="head-right">
+            <button class="ghost" id="notifbtn" data-act="toggle-notif" title="Enable notifications & sound">🔔 Alerts</button>
+            <button class="ghost" id="lockbtn" data-act="lock" hidden>🔒 Lock</button>
+            <span class="mode" id="mode">Connecting…</span>
+        </div>
+    </header>
+    <main id="view">
+        <p class="empty">Brewing…</p>
+    </main>
+    <div id="modal"></div>
+    <div id="toast"></div>
+    <script>window.PAGE = "chef";</script>
+    <script src="firebase-config.js"></script>
+    <script src="upi-config.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
